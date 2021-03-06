@@ -9,9 +9,10 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 
-export_file_url = 'https://github.com/pankymathur/Fine-Grained-Clothing-Classification/blob/master/data/cloth_categories/models/stage-1_sz-150.pth?raw=1'
-export_file_name = 'stage-1_sz-150.pth'
-classes = ['Blouse', 'Blazer', 'Button-Down', 'Bomber', 'Anorak', 'Tee', 'Tank', 'Top', 'Sweater', 'Flannel', 'Hoodie', 'Cardigan', 'Jacket', 'Henley', 'Poncho', 'Jersey', 'Turtleneck', 'Parka', 'Peacoat', 'Halter', 'Skirt', 'Shorts', 'Jeans', 'Joggers', 'Sweatpants', 'Jeggings', 'Cutoffs', 'Sweatshorts', 'Leggings', 'Culottes', 'Chinos', 'Trunks', 'Sarong', 'Gauchos', 'Jodhpurs', 'Capris', 'Dress', 'Romper', 'Coat', 'Kimono', 'Jumpsuit', 'Robe', 'Caftan', 'Kaftan', 'Coverup', 'Onesie']
+export_file_url = 'https://www.dropbox.com/s/6bgq8t6yextloqp/export.pkl?raw=1'
+export_file_name = 'export.pkl'
+classes = ['black', 'grizzly', 'teddys']
+
 path = Path(__file__).parent
 
 app = Starlette()
@@ -29,15 +30,16 @@ async def download_file(url, dest):
 
 
 async def setup_learner():
-    #await download_file(export_file_url, path / export_file_name)
-    #try:
-    #   learn = load_learner(path, export_file_name)
-     #   return learn
-    await download_file(export_file_url, path/'models'/f'{export_file_name}')
+    await download_file(export_file_url, path / export_file_name)
     try:
-        learn = load_learner(path/'models', export_file_name)
+       learn = load_learner(path, export_file_name)
+       return learn
+   # await download_file(export_file_url, path/'models'/f'{export_file_name}')
+    
+    #try:
+     #   learn = load_learner(path/'models', export_file_name)
         #learn = load_learner( path/'models'/f'{export_file_name}', cpu=True)
-        return learn
+      #  return learn
     except RuntimeError as e:
         if len(e.args) > 0 and 'CPU-only machine' in e.args[0]:
             print(e)
