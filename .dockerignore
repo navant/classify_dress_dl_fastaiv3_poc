@@ -1,2 +1,4 @@
-*.pkl
-
+*.pth
+.gitignore
+Dockerfile
+README.md

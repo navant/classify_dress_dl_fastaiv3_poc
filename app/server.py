@@ -1,30 +1,37 @@
-from starlette.applications import Starlette
-from starlette.responses import HTMLResponse
-from starlette.staticfiles import StaticFiles
-from starlette.middleware.cors import CORSMiddleware
-import uvicorn, aiohttp, asyncio
+import aiohttp
+import asyncio
+import uvicorn
+from fastai import *
+from fastai.vision import *
 from io import BytesIO
-from fastai.vision.all import *
+from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import HTMLResponse, JSONResponse
+from starlette.staticfiles import StaticFiles
 
-model_file_url = 'https://github.com/pankymathur/Fine-Grained-Clothing-Classification/blob/master/data/cloth_categories/models/stage-1_sz-150.pth?raw=true'
-model_file_name = 'stage-1_sz-150.pth'
+export_file_url = 'https://github.com/pankymathur/Fine-Grained-Clothing-Classification/blob/master/data/cloth_categories/models/stage-1_sz-150.pth?raw=1'
+export_file_name = 'export.pkl'
+classes = ['Blouse', 'Blazer', 'Button-Down', 'Bomber', 'Anorak', 'Tee', 'Tank', 'Top', 'Sweater', 'Flannel', 'Hoodie', 'Cardigan', 'Jacket', 'Henley', 'Poncho', 'Jersey', 'Turtleneck', 'Parka', 'Peacoat', 'Halter', 'Skirt', 'Shorts', 'Jeans', 'Joggers', 'Sweatpants', 'Jeggings', 'Cutoffs', 'Sweatshorts', 'Leggings', 'Culottes', 'Chinos', 'Trunks', 'Sarong', 'Gauchos', 'Jodhpurs', 'Capris', 'Dress', 'Romper', 'Coat', 'Kimono', 'Jumpsuit', 'Robe', 'Caftan', 'Kaftan', 'Coverup', 'Onesie']
 path = Path(__file__).parent
 
 app = Starlette()
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_headers=['X-Requested-With', 'Content-Type'])
 app.mount('/static', StaticFiles(directory='app/static'))
 
+
 async def download_file(url, dest):
     if dest.exists(): return
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             data = await response.read()
-            with open(dest, 'wb') as f: f.write(data)
+            with open(dest, 'wb') as f:
+                f.write(data)
+
 
 async def setup_learner():
-    await download_file(model_file_url, path/'models'/f'{model_file_name}')
+    await download_file(export_file_url, path / export_file_name)
     try:
-        learn = load_learner(path/'models'/model_file_name, cpu=True)
+        learn = load_learner(path, export_file_name)
         return learn
     except RuntimeError as e:
         if len(e.args) > 0 and 'CPU-only machine' in e.args[0]:
@@ -34,33 +41,28 @@ async def setup_learner():
         else:
             raise
 
+
 loop = asyncio.get_event_loop()
 tasks = [asyncio.ensure_future(setup_learner())]
 learn = loop.run_until_complete(asyncio.gather(*tasks))[0]
 loop.close()
 
-PREDICTION_FILE_SRC = path/'static'/'predictions.txt'
 
-@app.route("/upload", methods=["POST"])
-async def upload(request):
-    form = await request.form()
-    img_bytes = await (form["file"].read())
-    return predict_from_bytes(img_bytes)
+@app.route('/')
+async def homepage(request):
+    html_file = path / 'view' / 'index.html'
+    return HTMLResponse(html_file.open().read())
 
-def predict_from_bytes(img_bytes):
-    pred,pred_idx,probs = learn.predict(img_bytes)
-    classes = learn.dls.vocab
-    predictions = sorted(zip(classes, map(float, probs)), key=lambda p: p[1], reverse=True)
-    result_html1 = path/'static'/'result1.html'
-    result_html2 = path/'static'/'result2.html'
-    
-    result_html = str(result_html1.open().read() +str(predictions[0:3]) + result_html2.open().read())
-    return HTMLResponse(result_html)
 
-@app.route("/")
-def form(request):
-    index_html = path/'static'/'index.html'
-    return HTMLResponse(index_html.open().read())
+@app.route('/analyze', methods=['POST'])
+async def analyze(request):
+    img_data = await request.form()
+    img_bytes = await (img_data['file'].read())
+    img = open_image(BytesIO(img_bytes))
+    prediction = learn.predict(img)[0]
+    return JSONResponse({'result': str(prediction)})
 
-if __name__ == "__main__":
-    if "serve" in sys.argv: uvicorn.run(app, host="0.0.0.0", port=8080)
+
+if __name__ == '__main__':
+    if 'serve' in sys.argv:
+        uvicorn.run(app=app, host='0.0.0.0', port=5000, log_level="info")
