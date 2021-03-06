@@ -4,7 +4,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 import uvicorn, aiohttp, asyncio
 from io import BytesIO
-from fastai2.vision.all import *
+from fastai.vision.all import *
 
 model_file_url = 'https://github.com/pankymathur/Fine-Grained-Clothing-Classification/blob/master/data/cloth_categories/models/stage-1_sz-150.pth?raw=true'
 model_file_name = 'stage-1_sz-150.pth'
